@@ -212,3 +212,37 @@
   </footer>
 </body>
 </html>
+  <script>
+  // Handle Search Button Click
+  document.querySelector("button").addEventListener("click", () => {
+    const searchValue = document.querySelector("input").value.trim();
+    if (searchValue === "") {
+      alert("Please enter a service or location to search.");
+    } else {
+      alert(`Searching for: ${searchValue}... (feature coming soon 🚀)`);
+    }
+  });
+
+  // Handle Login Button Click
+  document.querySelectorAll("a[href='#login']").forEach(link => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const loginBox = document.createElement("div");
+      loginBox.className = "fixed inset-0 flex items-center justify-center bg-black/50 z-50";
+      loginBox.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-80 text-gray-800">
+          <h2 class="text-2xl font-bold text-center mb-4 text-indigo-600">Login</h2>
+          <input type="text" placeholder="Email or Username" class="w-full mb-3 px-3 py-2 border rounded-lg" />
+          <input type="password" placeholder="Password" class="w-full mb-4 px-3 py-2 border rounded-lg" />
+          <button id="submitLogin" class="bg-indigo-600 text-white px-4 py-2 rounded-lg w-full hover:bg-indigo-700">Login</button>
+          <p class="text-center text-sm mt-3 text-gray-500">Don’t have an account? <a href="#" class="text-indigo-600 font-medium">Sign up</a></p>
+          <button id="closeLogin" class="mt-4 block mx-auto text-sm text-gray-400 hover:text-gray-600">Close</button>
+        </div>`;
+      document.body.appendChild(loginBox);
+
+      document.getElementById("closeLogin").addEventListener("click", () => loginBox.remove());
+      document.getElementById("submitLogin").addEventListener("click", () => alert("Login feature coming soon 🚀"));
+    });
+  });
+</script>
+  
