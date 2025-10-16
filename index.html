@@ -1,422 +1,96 @@
-<!DOCTYPE html><html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HandWorkSpace</title>
-  <!-- Favicon as inline SVG (app icon) -->
-  <link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="%231e40af"/><stop offset="1" stop-color="%230ea5e9"/></linearGradient></defs><rect rx="56" width="256" height="256" fill="url(%23g)"/><g fill="white"><path d="M166 72l18 18-66 66-18-18z"/><path d="M106 118l-16-16-16 16 16 16z"/></g><path d="M132 96l12-12 56 56-12 12z" fill="%23fb923c"/></svg>'/>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React + ReactDOM + Babel -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>html,body{height:100%} body{background:#f7fafc}</style>
-</head>
-<body class="text-gray-800">
-  <div id="root"></div>  <script type="text/babel">
-    const {useEffect, useMemo, useState} = React;
-
-    // --- Utilities ---
-    const uid = () => Math.random().toString(36).slice(2);
-    const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
-    const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-
-    // Haversine distance (km)
-    function kmBetween(a, b){
-      if(!a || !b || a.lat==null || b.lat==null) return null;
-      const toRad = d => d*Math.PI/180;
-      const R=6371, dLat=toRad(b.lat-a.lat), dLon=toRad(b.lng-a.lng);
-      const sa = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
-      return 2*R*Math.asin(Math.sqrt(sa));
-    }
-
-    // Inline SVG App Icon component
-    function AppIcon({className="w-9 h-9"}){
-      return (
-        <svg viewBox="0 0 256 256" className={className} aria-hidden>
-          <defs>
-            <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
-              <stop stopColor="#1e40af"/>
-              <stop offset="1" stopColor="#0ea5e9"/>
-            </linearGradient>
-          </defs>
-          <rect rx="56" width="256" height="256" fill="url(#g)"/>
-          <g fill="white">
-            <path d="M166 72l18 18-66 66-18-18z"/>
-            <path d="M106 118l-16-16-16 16 16 16z"/>
-          </g>
-          <path d="M132 96l12-12 56 56-12 12z" fill="#fb923c"/>
-        </svg>
-      )
-    }
-
-    // --- Core Data Shapes ---
-    // User: {id,name,role:'customer'|'renderer', contact, country,state,lga, coords:{lat,lng}}
-    // Renderer Profile: {userId, trade, services:[{id,title,price}], bio}
-
-    // --- Navbar ---
-    function Navbar({user, setPage, onLogout}){
-      return (
-        <header className="bg-blue-700 text-white shadow sticky top-0 z-10">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <button onClick={()=>setPage('home')} className="flex items-center gap-2">
-              <AppIcon/>
-              <span className="font-bold text-lg">HandWorkSpace</span>
-            </button>
-            <nav className="flex items-center gap-4 text-sm">
-              <button onClick={()=>setPage('browse')} className="hover:text-orange-300">Browse Workers</button>
-              {user?.role==='renderer' && <button onClick={()=>setPage('renderer')} className="hover:text-orange-300">My Profile</button>}
-              {!user && <button onClick={()=>setPage('auth')} className="bg-orange-500 px-3 py-1 rounded hover:bg-orange-400">Login / Register</button>}
-              {user && (
-                <div className="flex items-center gap-3">
-                  <span className="hidden sm:inline">Hi, {user.name}</span>
-                  <button onClick={onLogout} className="px-3 py-1 rounded bg-white/10 hover:bg-white/20">Logout</button>
-                </div>
-              )}
-            </nav>
-          </div>
-        </header>
-      );
-    }
-
-    // --- Auth ---
-    function Auth({onAuthed}){
-      const [mode,setMode]=useState('login');
-      const [form,setForm]=useState({name:'', contact:'', role:'customer', country:'', state:'', lga:''});
-
-      function submit(e){
-        e.preventDefault();
-        const users = load('hws_users', []);
-        if(mode==='register'){
-          const u={id:uid(), ...form, coords:null};
-          users.push(u); save('hws_users', users); save('hws_session', u); onAuthed(u); return;
-        }
-        const found = users.find(u=>u.name===form.name && u.role===form.role);
-        if(found){ save('hws_session', found); onAuthed(found);} else alert('User not found. Try Register.');
-      }
-
-      function getLocation(){
-        if(!navigator.geolocation) return alert('Geolocation not supported on this device.');
-        navigator.geolocation.getCurrentPosition(pos=>{
-          const coords = {lat:pos.coords.latitude, lng:pos.coords.longitude};
-          setForm(f=>({...f, coords}));
-        }, err=> alert('Location permission denied or unavailable.'));
-      }
-
-      return (
-        <main className="max-w-xl mx-auto p-6">
-          <div className="bg-white rounded-2xl shadow p-6">
-            <h1 className="text-2xl font-bold text-blue-700 mb-4">{mode==='login'?'Login':'Create an Account'}</h1>
-            <form onSubmit={submit} className="grid gap-3">
-              <div className="grid md:grid-cols-2 gap-3">
-                <input className="border rounded px-3 py-2" placeholder="Full name" value={form.name} onChange={e=>setForm({...form, name:e.target.value})}/>
-                <input className="border rounded px-3 py-2" placeholder="Phone or Email" value={form.contact} onChange={e=>setForm({...form, contact:e.target.value})}/>
-              </div>
-              <div className="grid md:grid-cols-3 gap-3">
-                <input className="border rounded px-3 py-2" placeholder="Country" value={form.country} onChange={e=>setForm({...form, country:e.target.value})}/>
-                <input className="border rounded px-3 py-2" placeholder="State" value={form.state} onChange={e=>setForm({...form, state:e.target.value})}/>
-                <input className="border rounded px-3 py-2" placeholder="LGA" value={form.lga} onChange={e=>setForm({...form, lga:e.target.value})}/>
-              </div>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2"><input type="radio" name="role" checked={form.role==='customer'} onChange={()=>setForm({...form, role:'customer'})}/> Customer</label>
-                <label className="flex items-center gap-2"><input type="radio" name="role" checked={form.role==='renderer'} onChange={()=>setForm({...form, role:'renderer'})}/> Service Renderer</label>
-              </div>
-              <div className="flex items-center gap-3">
-                <button type="button" onClick={getLocation} className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-500">Use My GPS</button>
-                {form.coords && <span className="text-sm text-gray-600">Saved: {form.coords.lat.toFixed(4)}, {form.coords.lng.toFixed(4)}</span>}
-              </div>
-              <button className="px-4 py-2 rounded bg-orange-500 text-white hover:bg-orange-400">{mode==='login'?'Login':'Register'}</button>
-            </form>
-            <p className="mt-3 text-sm">{mode==='login'? 'New here? ':'Already have an account? '}<button className="text-blue-700" onClick={()=>setMode(m=>m==='login'?'register':'login')}>{mode==='login'?'Register':'Login'}</button></p>
-          </div>
-        </main>
-      );
-    }
-
-    // --- Renderer Profile Editor ---
-    function RendererProfile({user}){
-      const users = load('hws_users', []);
-      const existingProfile = load('hws_profiles', []).find(p=>p.userId===user.id);
-      const [trade,setTrade]=useState(existingProfile?.trade||'');
-      const [bio,setBio]=useState(existingProfile?.bio||'');
-      const [services,setServices]=useState(existingProfile?.services||[{id:uid(), title:'General', price:''}]);
-
-      function addService(){ setServices(s=>[...s,{id:uid(), title:'', price:''}]); }
-      function updateService(id, key, val){ setServices(s=>s.map(x=>x.id===id?{...x,[key]:val}:x)); }
-      function removeService(id){ setServices(s=>s.filter(x=>x.id!==id)); }
-
-      function saveProfile(){
-        const profiles = load('hws_profiles', []);
-        const rest = profiles.filter(p=>p.userId!==user.id);
-        const profile = {userId:user.id, trade, bio, services};
-        save('hws_profiles', [...rest, profile]);
-        alert('Profile saved');
-      }
-
-      return (
-        <main className="max-w-3xl mx-auto p-6">
-          <div className="bg-white rounded-2xl shadow p-6">
-            <h2 className="text-2xl font-bold text-blue-700">My Service Profile</h2>
-            <div className="grid gap-3 mt-4">
-              <input className="border rounded px-3 py-2" placeholder="Primary Trade (e.g., Plumber)" value={trade} onChange={e=>setTrade(e.target.value)} />
-              <textarea className="border rounded px-3 py-2" placeholder="Short bio or description" value={bio} onChange={e=>setBio(e.target.value)} />
-            </div>
-            <h3 className="mt-6 font-semibold">Services & Prices</h3>
-            <div className="mt-2 grid gap-3">
-              {services.map((s,i)=> (
-                <div key={s.id} className="grid md:grid-cols-2 gap-3 items-center bg-gray-50 rounded p-3">
-                  <input className="border rounded px-3 py-2" placeholder="Service name (e.g., Pipe Fixing)" value={s.title} onChange={e=>updateService(s.id,'title',e.target.value)} />
-                  <div className="flex gap-2">
-                    <input className="border rounded px-3 py-2 w-full" placeholder="Price (e.g., ₦5,000)" value={s.price} onChange={e=>updateService(s.id,'price',e.target.value)} />
-                    <button onClick={()=>removeService(s.id)} className="px-3 py-2 rounded bg-white border hover:bg-gray-100">Remove</button>
-                  </div>
-                </div>
-              ))}
-              <button onClick={addService} className="self-start px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-500">+ Add Service</button>
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button onClick={saveProfile} className="px-4 py-2 rounded bg-orange-500 text-white hover:bg-orange-400">Save Profile</button>
-            </div>
-            <p className="mt-3 text-sm text-gray-600">Your public location: {user.lga||'—'}, {user.state||'—'}, {user.country||'—'} {user.coords?`(${user.coords.lat.toFixed(2)}, ${user.coords.lng.toFixed(2)})`:''}</p>
-          </div>
-        </main>
-      )
-    }
-
-    // --- Browse / Search ---
-    function Browse({session}){
-      const users = load('hws_users', []);
-      const profiles = load('hws_profiles', []);
-      const renderers = useMemo(()=> users.filter(u=>u.role==='renderer').map(u=>({
-        user:u,
-        profile: profiles.find(p=>p.userId===u.id) || {services:[]}
-      })), [users, profiles]);
-
-      const [q,setQ]=useState('');
-      const [loc,setLoc]=useState({country:'', state:'', lga:''});
-      const [maxKm,setMaxKm]=useState('');
-
-      const results = renderers.filter(r=>{
-        const matchesText = !q || (
-          r.profile.trade?.toLowerCase().includes(q.toLowerCase()) ||
-          r.profile.services?.some(s=>s.title.toLowerCase().includes(q.toLowerCase()))
-        );
-        const mCountry = !loc.country || (r.user.country||'').toLowerCase().includes(loc.country.toLowerCase());
-        const mState = !loc.state || (r.user.state||'').toLowerCase().includes(loc.state.toLowerCase());
-        const mLga = !loc.lga || (r.user.lga||'').toLowerCase().includes(loc.lga.toLowerCase());
-        let mDistance = true;
-        if(maxKm && session?.coords && r.user.coords){
-          const d=kmBetween(session.coords, r.user.coords);
-          mDistance = d!=null && d <= Number(maxKm);
-        }
-        return matchesText && mCountry && mState && mLga && mDistance;
-      });
-
-      return (
-        <main className="max-w-6xl mx-auto p-6">
-          <div className="bg-white rounded-2xl shadow p-4">
-            <div className="grid md:grid-cols-4 gap-3">
-              <input className="border rounded px-3 py-2" placeholder="Search trade or service (e.g., plumber, tiling)" value={q} onChange={e=>setQ(e.target.value)} />
-              <input className="border rounded px-3 py-2" placeholder="Country" value={loc.country} onChange={e=>setLoc({...loc, country:e.target.value})} />
-              <input className="border rounded px-3 py-2" placeholder="State" value={loc.state} onChange={e=>setLoc({...loc, state:e.target.value})} />
-              <input className="border rounded px-3 py-2" placeholder="LGA" value={loc.lga} onChange={e=>setLoc({...loc, lga:e.target.value})} />
-            </div>
-            <div className="mt-3 flex items-center gap-3">
-              <input className="border rounded px-3 py-2 w-40" placeholder="Max distance (km)" value={maxKm} onChange={e=>setMaxKm(e.target.value)} />
-              {!session?.coords && <span className="text-sm text-gray-600">Login & save GPS in your profile to enable distance filter.</span>}
-            </div>
-          </div>
-
-          <section className="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {results.map(({user,profile})=> (
-              <article key={user.id} className="bg-white rounded-2xl shadow p-4 flex flex-col">
-                <div className="flex items-center gap-3">
-                  <AppIcon className="w-10 h-10"/>
-                  <div>
-                    <h3 className="font-bold text-blue-700">{profile.trade||'Service Provider'}</h3>
-                    <p className="text-sm text-gray-600">{user.lga||'—'}, {user.state||'—'}, {user.country||'—'}</p>
-                  </div>
-                </div>
-                {profile.bio && <p className="mt-3 text-sm text-gray-700">{profile.bio}</p>}
-                <ul className="mt-3 grid gap-2">
-                  {(profile.services?.length?profile.services:[{title:'General',price:'—'}]).map(s=> (
-                    <li key={s.id||s.title} className="border rounded px-3 py-2 flex justify-between">
-                      <span>{s.title}</span>
-                      <span className="font-semibold text-orange-600">{s.price||'Ask'}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-4 flex justify-between items-center text-sm text-gray-600">
-                  <span>Contact: {user.contact||user.name}</span>
-                  {session?.coords && user.coords && (
-                    <span>{kmBetween(session.coords,user.coords)?.toFixed(1)} km away</span>
-                  )}
-                </div>
-              </article>
-            ))}
-            {results.length===0 && (
-              <div className="col-span-full text-center text-gray-600">No workers found. Try broadening your filters.</div>
-            )}
-          </section>
-        </main>
-      )
-    }
-
-    // --- Home ---
-    const Home = () => (
-      <main className="max-w-6xl mx-auto p-6">
-        <div className="bg-white rounded-2xl shadow p-8 flex items-center gap-6">
-          <AppIcon className="w-16 h-16"/>
-          <div>
-            <h1 className="text-3xl font-extrabold text-blue-700">Find Trusted Workers Near You</h1>
-            <p className="mt-2 text-gray-700">Search plumbers, carpenters, electricians and more. Filter by LGA → State → Country, or by distance if you save your GPS.</p>
-          </div>
-        </div>
-      </main>
-    );
-
-    // --- App ---
-    function App(){
-      const [page,setPage]=useState('home');
-      const [session,setSession]=useState(load('hws_session', null));
-
-      function handleLogout(){ save('hws_session', null); setSession(null); setPage('home'); }
-
-      useEffect(()=>{ save('hws_session', session); }, [session]);
-
-      return (
-        <div className="min-h-screen flex flex-col">
-          <Navbar user={session} setPage={setPage} onLogout={handleLogout}/>
-          <div className="flex-1">
-            {page==='home' && <Home/>}
-            {page==='auth' && <Auth onAuthed={(u)=>{ setSession(u); setPage(u.role==='renderer'?'renderer':'browse'); }}/>}            
-            {page==='renderer' && session?.role==='renderer' && <RendererProfile user={session}/>}            
-            {page==='browse' && <Browse session={session}/>}            
-          </div>
-          <footer className="mt-8 border-t">
-            <div className="max-w-6xl mx-auto px-4 py-6 text-sm text-gray-500">© {new Date().getFullYear()} HandWorkSpace</div>
-          </footer>
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-  </script></body>
-  </html>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Service Link | Connect with Local Experts</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <title>Service Link | Find & Hire Local Experts</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 </head>
 
-<body class="bg-gray-50 text-gray-800">
+<body class="bg-gray-50 text-gray-900">
+
   <!-- Navbar -->
-  <header class="bg-blue-600 text-white p-4 shadow-md">
-    <h1 class="text-2xl font-bold">Service Link</h1>
+  <header class="bg-gradient-to-r from-blue-700 to-cyan-500 text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto flex justify-between items-center px-4 py-4">
+      <h1 class="text-2xl font-bold tracking-wide">Service<span class="text-orange-300">Link</span></h1>
+      <nav class="flex gap-4 text-sm">
+        <a href="#services" class="hover:text-orange-200">Services</a>
+        <a href="#about" class="hover:text-orange-200">About</a>
+        <a href="#contact" class="bg-white text-blue-700 px-4 py-1 rounded-md font-semibold hover:bg-gray-100 transition">Login</a>
+      </nav>
+    </div>
   </header>
 
   <!-- Hero Section -->
-  <section class="text-center py-16">
-    <h2 class="text-4xl font-semibold mb-4">Find trusted workers near you</h2>
-    <p class="mb-8">Chat with carpenters, plumbers, electricians, and more — right from your phone.</p>
-    <a href="#services" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">Get Started</a>
+  <section class="bg-gradient-to-br from-blue-700 to-cyan-500 text-white text-center py-20 px-4">
+    <div class="max-w-3xl mx-auto">
+      <h2 class="text-4xl sm:text-5xl font-extrabold mb-4 leading-tight">Find Trusted Workers Near You</h2>
+      <p class="text-lg text-white/90 mb-8">Connect instantly with carpenters, electricians, plumbers, and other skilled professionals — all in one app.</p>
+
+      <div class="flex flex-col sm:flex-row justify-center gap-3 max-w-md mx-auto">
+        <input type="text" placeholder="Search by trade or location..." class="px-4 py-3 rounded-lg text-gray-800 w-full outline-none" />
+        <button class="bg-orange-400 px-6 py-3 rounded-lg font-semibold hover:bg-orange-500 transition">Search</button>
+      </div>
+
+      <lottie-player src="https://assets1.lottiefiles.com/packages/lf20_jcikwtux.json" background="transparent" speed="1" style="width: 200px; margin: 30px auto 0;" loop autoplay></lottie-player>
+    </div>
   </section>
 
   <!-- Services Section -->
-  <section id="services" class="max-w-4xl mx-auto py-12 grid md:grid-cols-3 gap-6">
-    <div class="p-6 bg-white shadow rounded-lg text-center">
-      <h3 class="text-xl font-semibold mb-2">Carpenters</h3>
-      <p>Get custom furniture and repairs quickly and affordably.</p>
-    </div>
+  <section id="services" class="max-w-6xl mx-auto py-16 px-6">
+    <h3 class="text-3xl font-bold text-center mb-10 text-blue-700">Popular Services</h3>
 
-    <div class="p-6 bg-white shadow rounded-lg text-center">
-      <h3 class="text-xl font-semibold mb-2">Electricians</h3>
-      <p>Fix wiring, install appliances, and more with trusted electricians.</p>
-    </div>
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div class="bg-white shadow-lg rounded-2xl p-6 text-center hover:-translate-y-1 hover:shadow-xl transition">
+        <img src="https://img.icons8.com/ios-filled/80/1e40af/hammer.png" class="mx-auto mb-3" alt="">
+        <h4 class="font-bold text-lg mb-2">Carpenters</h4>
+        <p class="text-sm text-gray-600 mb-4">Get custom furniture, repairs, and fittings at your convenience.</p>
+        <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Chat</button>
+      </div>
 
-    <div class="p-6 bg-white shadow rounded-lg text-center">
-      <h3 class="text-xl font-semibold mb-2">Plumbers</h3>
-      <p>Book local plumbers for quick and reliable services.</p>
+      <div class="bg-white shadow-lg rounded-2xl p-6 text-center hover:-translate-y-1 hover:shadow-xl transition">
+        <img src="https://img.icons8.com/ios-filled/80/1e40af/electricity.png" class="mx-auto mb-3" alt="">
+        <h4 class="font-bold text-lg mb-2">Electricians</h4>
+        <p class="text-sm text-gray-600 mb-4">Install appliances, fix wiring, or get professional home service.</p>
+        <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Chat</button>
+      </div>
+
+      <div class="bg-white shadow-lg rounded-2xl p-6 text-center hover:-translate-y-1 hover:shadow-xl transition">
+        <img src="https://img.icons8.com/ios-filled/80/1e40af/water.png" class="mx-auto mb-3" alt="">
+        <h4 class="font-bold text-lg mb-2">Plumbers</h4>
+        <p class="text-sm text-gray-600 mb-4">Hire experts to fix leaks, blocked pipes, or bathroom fittings.</p>
+        <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Chat</button>
+      </div>
+
+      <div class="bg-white shadow-lg rounded-2xl p-6 text-center hover:-translate-y-1 hover:shadow-xl transition">
+        <img src="https://img.icons8.com/ios-filled/80/1e40af/paint-brush.png" class="mx-auto mb-3" alt="">
+        <h4 class="font-bold text-lg mb-2">Painters</h4>
+        <p class="text-sm text-gray-600 mb-4">Professional interior and exterior painters near you.</p>
+        <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Chat</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section id="about" class="bg-blue-50 py-16 text-center">
+    <div class="max-w-4xl mx-auto px-6">
+      <h3 class="text-3xl font-bold text-blue-700 mb-4">Why Choose ServiceLink?</h3>
+      <p class="text-gray-700 leading-relaxed text-lg">
+        We connect you with verified and reliable local professionals for any job. 
+        Whether you’re fixing a leak or building your dream home, ServiceLink helps 
+        you find the right hands fast — no middlemen, no stress.
+      </p>
     </div>
   </section>
 
   <!-- Footer -->
-  <footer class="bg-gray-800 text-white text-center py-4 mt-12">
-    <p>&copy; 2025 Service Link. All rights reserved.</p>
-  </footer>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Service Link | Find Local Experts</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-
-<body class="bg-gray-100">
-  <!-- Top Navbar -->
-  <header class="bg-blue-600 text-white flex items-center justify-between px-4 py-3 shadow-md">
-    <h1 class="text-xl font-bold">Service Link</h1>
-    <button class="bg-white text-blue-600 px-3 py-1 rounded-md font-semibold">Login</button>
-  </header>
-
-  <!-- Hero / Search Section -->
-  <section class="p-6 text-center bg-blue-50">
-    <h2 class="text-2xl font-bold mb-3 text-blue-700">Find a Trusted Worker Near You</h2>
-    <p class="text-gray-600 mb-5">Search for plumbers, electricians, carpenters, and more.</p>
-
-    <div class="max-w-md mx-auto bg-white p-3 rounded-xl shadow-md flex items-center">
-      <input 
-        type="text" 
-        placeholder="Search by job type or location..." 
-        class="flex-grow outline-none px-2 text-gray-700"
-      />
-      <button class="bg-blue-600 text-white px-4 py-2 rounded-md">Search</button>
+  <footer id="contact" class="bg-gradient-to-r from-blue-700 to-cyan-500 text-white py-8 mt-10">
+    <div class="max-w-6xl mx-auto text-center px-6">
+      <h4 class="text-lg font-semibold mb-2">Get in touch</h4>
+      <p class="text-sm text-white/80">Email: support@servicelink.com | Call: +234 801 234 5678</p>
+      <p class="mt-4 text-sm text-white/60">© 2025 ServiceLink. All rights reserved.</p>
     </div>
-  </section>
-
-  <!-- Categories Section -->
-  <section class="p-6 grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
-    <div class="bg-white shadow rounded-xl p-4 text-center hover:scale-105 transition">
-      <img src="https://img.icons8.com/ios-filled/50/000000/hammer.png" class="mx-auto mb-2" alt="Carpenter Icon"/>
-      <h3 class="font-semibold text-lg">Carpenters</h3>
-    </div>
-
-    <div class="bg-white shadow rounded-xl p-4 text-center hover:scale-105 transition">
-      <img src="https://img.icons8.com/ios-filled/50/000000/electricity.png" class="mx-auto mb-2" alt="Electrician Icon"/>
-      <h3 class="font-semibold text-lg">Electricians</h3>
-    </div>
-
-    <div class="bg-white shadow rounded-xl p-4 text-center hover:scale-105 transition">
-      <img src="https://img.icons8.com/ios-filled/50/000000/water.png" class="mx-auto mb-2" alt="Plumber Icon"/>
-      <h3 class="font-semibold text-lg">Plumbers</h3>
-    </div>
-
-    <div class="bg-white shadow rounded-xl p-4 text-center hover:scale-105 transition">
-      <img src="https://img.icons8.com/ios-filled/50/000000/brick-wall.png" class="mx-auto mb-2" alt="Mason Icon"/>
-      <h3 class="font-semibold text-lg">Masons</h3>
-    </div>
-
-    <div class="bg-white shadow rounded-xl p-4 text-center hover:scale-105 transition">
-      <img src="https://img.icons8.com/ios-filled/50/000000/paint-brush.png" class="mx-auto mb-2" alt="Painter Icon"/>
-      <h3 class="font-semibold text-lg">Painters</h3>
-    </div>
-
-    <div class="bg-white shadow rounded-xl p-4 text-center hover:scale-105 transition">
-      <img src="https://img.icons8.com/ios-filled/50/000000/tools.png" class="mx-auto mb-2" alt="Technician Icon"/>
-      <h3 class="font-semibold text-lg">Technicians</h3>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="bg-blue-600 text-white text-center py-4 mt-6">
-    <p>&copy; 2025 Service Link. All rights reserved.</p>
   </footer>
 </body>
 </html>
