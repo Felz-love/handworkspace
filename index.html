@@ -85,6 +85,53 @@
   </section>    <!-- Footer -->    <footer class="bg-black/30 text-center py-8 mt-10 text-white/80">  
     <p>© 2025 ServiceLink — Connecting Everyone, Everywhere.</p>  
   </footer>  
+   <!-- ✅ Sign Up Modal (Hidden by default) -->
+<div id="signupModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center">
+  <div class="bg-white text-gray-800 rounded-2xl p-8 w-[90%] max-w-sm relative">
+    <button onclick="toggleSignup()" class="absolute top-3 right-4 text-gray-500 hover:text-red-500">✕</button>
+    <h3 class="text-2xl font-bold mb-4 text-center text-orange-600">Create an Account</h3>
+
+    <input type="text" placeholder="Full Name" class="w-full border rounded-lg px-4 py-2 mb-3 outline-none">
+    <input type="email" placeholder="Email" class="w-full border rounded-lg px-4 py-2 mb-3 outline-none">
+    <input type="password" placeholder="Password" class="w-full border rounded-lg px-4 py-2 mb-4 outline-none">
+
+    <button class="bg-orange-500 text-white w-full py-2 rounded-lg hover:bg-orange-600">Sign Up</button>
+
+    <p class="text-center text-sm text-gray-600 mt-3">
+      Already have an account? <a href="#" class="text-orange-500" id="goToLogin">Login</a>
+    </p>
+  </div>
+</div>
+
+<script>
+  // Toggle Login Modal
+  function toggleLogin() {
+    document.getElementById('loginModal').classList.toggle('hidden');
+  }
+
+  // Toggle Signup Modal
+  function toggleSignup() {
+    document.getElementById('signupModal').classList.toggle('hidden');
+  }
+
+  // Make the "Sign up" link inside login modal open the signup modal
+  document.querySelectorAll('a[href="#"]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      if (e.target.textContent.trim() === "Sign up") {
+        e.preventDefault();
+        document.getElementById('loginModal').classList.add('hidden');
+        toggleSignup();
+      }
+    });
+  });
+
+  // Make the "Login" link inside signup modal open login modal
+  document.getElementById("goToLogin").addEventListener("click", (e) => {
+    e.preventDefault();
+    document.getElementById('signupModal').classList.add('hidden');
+    toggleLogin();
+  });
+</script> 
 </body>    <script>  
   // SEARCH FUNCTIONALITY  
   const searchInput = document.querySelector('input[placeholder="Search service or location..."]');  
