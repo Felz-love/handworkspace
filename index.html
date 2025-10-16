@@ -115,6 +115,20 @@
     <p>© 2025 ServiceLink — Connecting Everyone, Everywhere.</p>
   </footer>
 </body>
+
+  <script>
+  // SEARCH FUNCTIONALITY
+  const searchInput = document.querySelector('input[placeholder="Search service or location..."]');
+  const workerCards = document.querySelectorAll('#top .bg-white\\/10');
+
+  searchInput.addEventListener('input', function() {
+    const searchValue = this.value.toLowerCase();
+    workerCards.forEach(card => {
+      const text = card.innerText.toLowerCase();
+      card.style.display = text.includes(searchValue) ? 'block' : 'none';
+    });
+  });
+</script>
 </html>
   <script>
   // Handle Search Button Click
