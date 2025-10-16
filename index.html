@@ -131,7 +131,17 @@ document.getElementById("closeLogin").addEventListener("click", () => loginBox.r
 <button class="bg-orange-500 text-white w-full py-2 rounded-lg hover:bg-orange-600">Login</button>  
 
 <p class="text-center text-sm text-gray-600 mt-3">Don’t have an account? <a href="#" class="text-orange-500">Sign up</a></p>
-
+<!-- ✅ SIGNUP MODAL -->
+<div id="signupModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
+  <div class="bg-white/10 backdrop-blur-xl p-6 rounded-2xl w-80 shadow-2xl border border-white/20 text-center">
+    <h2 class="text-2xl font-bold mb-4">Create Account</h2>
+    <input type="text" placeholder="Full Name" class="w-full p-2 mb-2 rounded-lg bg-white/20 text-white placeholder-gray-300">
+    <input type="email" placeholder="Email" class="w-full p-2 mb-2 rounded-lg bg-white/20 text-white placeholder-gray-300">
+    <input type="password" placeholder="Password" class="w-full p-2 mb-4 rounded-lg bg-white/20 text-white placeholder-gray-300">
+    <button id="signupSubmit" class="bg-orange-400 hover:bg-orange-500 text-white py-2 px-4 rounded-lg w-full font-semibold">Sign Up</button>
+    <button onclick="toggleSignup()" class="mt-3 text-gray-300 hover:text-white text-sm">Cancel</button>
+  </div>
+</div>
   </div>  
 </div>  <script>  
   // Toggle the login modal  
