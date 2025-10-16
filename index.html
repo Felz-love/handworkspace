@@ -208,5 +208,23 @@ document.addEventListener("DOMContentLoaded", () => {
   hero.classList.add("transition-all", "duration-1000", "ease-in-out", "scale-100");
 });
 </script>
+<!-- ✅ SIGNUP SCRIPT -->
+<script>
+function toggleSignup() {
+  document.getElementById("signupModal").classList.toggle("hidden");
+}
 
+const signupLinks = document.querySelectorAll("a[href='#signup']");
+signupLinks.forEach(link => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggleSignup();
+  });
+});
+
+document.getElementById("signupSubmit").addEventListener("click", () => {
+  alert("🎉 Account created successfully! (Demo mode for now)");
+  toggleSignup();
+});
+</script>
 <!-- ✅ END OF ENHANCEMENTS -->
