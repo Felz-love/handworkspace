@@ -145,3 +145,58 @@ document.getElementById("closeLogin").addEventListener("click", () => loginBox.r
     toggleLogin();  
   });  
 </script>
+<!-- ✅ ENHANCEMENTS ADDED BELOW -->
+<script>
+// --- POLISHING UI COLORS AND BACKGROUND ---
+document.body.classList.add('bg-gradient-to-br', 'from-slate-900', 'via-blue-900', 'to-cyan-800', 'text-white');
+
+// --- FIXED LOGIN FUNCTIONALITY ---
+const loginLinks = document.querySelectorAll("a[href='#login']");
+const modal = document.getElementById("loginModal");
+if (loginLinks && modal) {
+  loginLinks.forEach(link => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      modal.classList.remove("hidden");
+    });
+  });
+  document.querySelector("#loginModal button[onclick='toggleLogin()']").addEventListener("click", () => {
+    modal.classList.add("hidden");
+  });
+}
+
+// --- SEARCH FUNCTIONALITY (Improved) ---
+const searchBox = document.querySelector('input[placeholder="Search service or location..."]');
+const allWorkers = document.querySelectorAll("#top .bg-white\\/10");
+
+if (searchBox && allWorkers.length) {
+  searchBox.addEventListener("input", function () {
+    const searchValue = this.value.toLowerCase().trim();
+    allWorkers.forEach(card => {
+      const content = card.innerText.toLowerCase();
+      card.style.display = content.includes(searchValue) ? "block" : "none";
+    });
+  });
+}
+
+// --- HERO BUTTON FEEDBACK ---
+const searchBtn = document.querySelector("button.bg-orange-400");
+if (searchBtn) {
+  searchBtn.addEventListener("click", () => {
+    const query = searchBox.value.trim();
+    if (!query) {
+      alert("🔎 Please type a service or location first.");
+    } else {
+      alert(`Searching for “${query}” — feature coming soon 🚀`);
+    }
+  });
+}
+
+// --- NICE LITTLE ANIMATION EFFECT ---
+document.addEventListener("DOMContentLoaded", () => {
+  const hero = document.querySelector("section.text-center");
+  hero.classList.add("transition-all", "duration-1000", "ease-in-out", "scale-100");
+});
+</script>
+
+<!-- ✅ END OF ENHANCEMENTS -->
